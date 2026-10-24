@@ -1,10 +1,26 @@
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Loader2, MailPlus, Menu, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  MailPlus,
+  Menu,
+  X,
+  CalendarClock,
+  Send,
+  AlertTriangle,
+  Clock3,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
+
 import { ComposeEmailForm } from './components/ComposeEmailForm';
 import { EmailDetailModal } from './components/EmailDetailModal';
 import { EmailQueueTable } from './components/EmailQueueTable';
 import { LoginScreen } from './components/LoginScreen';
 import { Sidebar } from './components/Sidebar';
+
 import {
   cancelScheduledEmail,
   captureOAuthTokenFromUrl,
@@ -17,6 +33,7 @@ import {
   scheduleEmailBatch,
   setMockQueuePreset,
 } from './services/api';
+
 import {
   ActiveTab,
   EmailRecord,
@@ -28,8 +45,11 @@ import {
 
 function formatShortTime(iso?: string): string {
   if (!iso) return '—';
+
   const date = new Date(iso);
+
   if (Number.isNaN(date.getTime())) return '—';
+
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: '2-digit',
@@ -45,8 +65,12 @@ export default function App() {
   const [isAuthActionLoading, setIsAuthActionLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(WorkspaceView.QUEUE);
-  const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.SCHEDULED);
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(
+    WorkspaceView.QUEUE
+  );
+  const [activeTab, setActiveTab] = useState<ActiveTab>(
+    ActiveTab.SCHEDULED
+  );
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const [scheduledEmails, setScheduledEmails] = useState<EmailRecord[]>([]);
@@ -54,17 +78,21 @@ export default function App() {
   const [isQueueLoading, setIsQueueLoading] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [inspectedEmail, setInspectedEmail] = useState<EmailRecord | null>(null);
+  const [inspectedEmail, setInspectedEmail] = useState<EmailRecord | null>(
+    null
+  );
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
 
   const loadEmailQueues = useCallback(async () => {
     setIsQueueLoading(true);
     setQueueError(null);
+
     try {
       const [scheduled, sent] = await Promise.all([
         fetchScheduledEmails(),
         fetchSentEmails(),
       ]);
+
       setScheduledEmails(scheduled);
       setSentEmails(sent);
     } catch (err) {
@@ -72,6 +100,7 @@ export default function App() {
         err instanceof Error
           ? err.message
           : 'Unable to fetch email queues from the server.';
+
       setQueueError(message);
     } finally {
       setIsQueueLoading(false);
@@ -80,10 +109,13 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+
     const bootstrapSession = async () => {
       captureOAuthTokenFromUrl();
+
       try {
         const activeUser = await fetchCurrentUser();
+
         if (isMounted) {
           setUser(activeUser);
         }
@@ -93,6 +125,7 @@ export default function App() {
             err instanceof Error
               ? err.message
               : 'Could not verify existing authentication session.';
+
           setAuthError(message);
         }
       } finally {
@@ -103,6 +136,7 @@ export default function App() {
     };
 
     bootstrapSession();
+
     return () => {
       isMounted = false;
     };
@@ -117,14 +151,19 @@ export default function App() {
   const handleGoogleLogin = async () => {
     setAuthError(null);
     setIsAuthActionLoading(true);
+
     try {
       const authenticatedUser = await initiateGoogleOAuth();
+
       if (authenticatedUser) {
         setUser(authenticatedUser);
       }
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Google authentication failed.';
+        err instanceof Error
+          ? err.message
+          : 'Google authentication failed.';
+
       setAuthError(message);
     } finally {
       setIsAuthActionLoading(false);
@@ -133,8 +172,10 @@ export default function App() {
 
   const handleLogout = async () => {
     setIsAuthActionLoading(true);
+
     try {
       await logoutCurrentUser();
+
       setUser(null);
       setScheduledEmails([]);
       setSentEmails([]);
@@ -142,70 +183,105 @@ export default function App() {
       setActiveTab(ActiveTab.SCHEDULED);
       setBannerNotice(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to log out.';
+      const message =
+        err instanceof Error ? err.message : 'Failed to log out.';
+
       setQueueError(message);
     } finally {
       setIsAuthActionLoading(false);
     }
   };
 
-  const handleScheduleSubmit = async (payload: ScheduleCampaignPayload) => {
+  const handleScheduleSubmit = async (
+    payload: ScheduleCampaignPayload
+  ) => {
     const response = await scheduleEmailBatch(payload);
+
     await loadEmailQueues();
+
     setBannerNotice(
       `Scheduled ${response.scheduledCount} ${
         response.scheduledCount === 1 ? 'email' : 'emails'
       } into the dispatch queue.`
     );
+
     return { scheduledCount: response.scheduledCount };
   };
 
   const handleCancelScheduled = async (id: string) => {
     setCancellingId(id);
+
     try {
       await cancelScheduledEmail(id);
-      setScheduledEmails((prev) => prev.filter((item) => item.id !== id));
+
+      setScheduledEmails((prev) =>
+        prev.filter((item) => item.id !== id)
+      );
+
       setBannerNotice('Cancelled scheduled email job.');
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Unable to cancel scheduled email.';
+        err instanceof Error
+          ? err.message
+          : 'Unable to cancel scheduled email.';
+
       setQueueError(message);
     } finally {
       setCancellingId(null);
     }
   };
 
-  const handleMockPresetChange = async (preset: 'empty' | 'sample') => {
-    await setMockQueuePreset(preset);
-    await loadEmailQueues();
-    setBannerNotice(
-      preset === 'empty'
-        ? 'Cleared local preview records to demonstrate empty states.'
-        : 'Restored sample scheduled and sent email records.'
-    );
+  const handleMockPresetChange = async (
+    preset: 'empty' | 'sample'
+  ) => {
+    try {
+      await setMockQueuePreset(preset);
+      await loadEmailQueues();
+
+      setBannerNotice(
+        preset === 'empty'
+          ? 'Cleared local preview records to demonstrate empty states.'
+          : 'Restored sample scheduled and sent email records.'
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Unable to update preview records.';
+
+      setQueueError(message);
+    }
   };
 
   const deliveredCount = useMemo(
-    () => sentEmails.filter((e) => e.status === EmailStatus.SENT).length,
+    () =>
+      sentEmails.filter((email) => email.status === EmailStatus.SENT)
+        .length,
     [sentEmails]
   );
 
   const failedCount = useMemo(
-    () => sentEmails.filter((e) => e.status === EmailStatus.FAILED).length,
+    () =>
+      sentEmails.filter((email) => email.status === EmailStatus.FAILED)
+        .length,
     [sentEmails]
   );
 
   const nextReleaseTimestamp = useMemo(() => {
     if (scheduledEmails.length === 0) return undefined;
+
     return scheduledEmails[0].scheduledAt;
   }, [scheduledEmails]);
 
   if (isCheckingSession) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-          <Loader2 className="w-4 h-4 animate-spin text-blue-600" aria-hidden="true" />
-          <span>Verifying session...</span>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-600 shadow-sm">
+          <Loader2
+            className="h-5 w-5 animate-spin text-blue-600"
+            aria-hidden="true"
+          />
+          <span>Verifying your session...</span>
         </div>
       </div>
     );
@@ -225,12 +301,11 @@ export default function App() {
     workspaceView === WorkspaceView.COMPOSE
       ? 'Compose Campaign'
       : activeTab === ActiveTab.SCHEDULED
-      ? 'Scheduled Emails'
-      : 'Sent Emails';
+        ? 'Scheduled Emails'
+        : 'Sent Emails';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex">
-      {/* Persistent Desktop & Drawer Mobile Sidebar */}
+    <div className="flex min-h-screen bg-[#f6f8fc] text-slate-900">
       <Sidebar
         user={user}
         workspaceView={workspaceView}
@@ -240,168 +315,283 @@ export default function App() {
         isLoggingOut={isAuthActionLoading}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        onSelectCompose={() => setWorkspaceView(WorkspaceView.COMPOSE)}
+        onSelectCompose={() => {
+          setWorkspaceView(WorkspaceView.COMPOSE);
+          setIsMobileSidebarOpen(false);
+        }}
         onSelectQueueTab={(tab) => {
           setActiveTab(tab);
           setWorkspaceView(WorkspaceView.QUEUE);
+          setIsMobileSidebarOpen(false);
         }}
         onLogout={handleLogout}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* SaaS Top Bar: Contextual Breadcrumb Left + Single Primary Action Right */}
-        <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between gap-8 sticky top-0 z-20">
-          <div className="flex items-center gap-3 min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-xl sm:px-8">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
               aria-label="Open navigation menu"
-              className="lg:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+              className="rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 lg:hidden"
             >
-              <Menu className="w-5 h-5" aria-hidden="true" />
+              <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
 
-            <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm min-w-0">
-              <button
-                type="button"
-                onClick={() => setWorkspaceView(WorkspaceView.QUEUE)}
-                className="text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
-              >
+            <nav
+              aria-label="Breadcrumb"
+              className="flex min-w-0 items-center gap-2 text-sm"
+            >
+              <span className="hidden text-slate-400 sm:inline">
                 Workspace
-              </button>
-              <span aria-hidden="true" className="text-slate-300">
+              </span>
+              <span
+                aria-hidden="true"
+                className="hidden text-slate-300 sm:inline"
+              >
                 /
               </span>
-              <span className="font-semibold text-slate-900 truncate">
+              <span className="truncate font-semibold text-slate-800">
                 {currentSectionLabel}
               </span>
             </nav>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex shrink-0 items-center gap-2">
             {workspaceView === WorkspaceView.COMPOSE ? (
               <button
                 type="button"
                 onClick={() => setWorkspaceView(WorkspaceView.QUEUE)}
-                className="min-h-10 px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:px-4"
               >
-                <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Back to Queue</span>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Back to Queue</span>
+                <span className="sm:hidden">Back</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => setWorkspaceView(WorkspaceView.COMPOSE)}
-                className="min-h-10 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:px-4"
               >
-                <MailPlus className="w-4 h-4" aria-hidden="true" />
+                <MailPlus className="h-4 w-4" aria-hidden="true" />
                 <span>Compose Emails</span>
               </button>
             )}
           </div>
         </header>
 
-        {/* Main Viewport Container */}
-        <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-8 py-8 space-y-6">
-          {/* Mock Mode Transparency Notice */}
+        <main className="mx-auto w-full max-w-[1440px] flex-1 space-y-7 px-4 py-7 sm:px-8 sm:py-9">
+          <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                Email workspace
+              </div>
+
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                {workspaceView === WorkspaceView.COMPOSE
+                  ? 'Create a campaign'
+                  : 'Email dashboard'}
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+                {workspaceView === WorkspaceView.COMPOSE
+                  ? 'Prepare your message and choose when it should be scheduled.'
+                  : 'Manage your scheduled emails and keep track of your dispatch queue.'}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={loadEmailQueues}
+              disabled={isQueueLoading}
+              className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isQueueLoading ? 'animate-spin' : ''}`}
+                aria-hidden="true"
+              />
+              Refresh data
+            </button>
+          </section>
+
           {IS_MOCK_MODE && (
-            <div className="px-4 py-2.5 rounded-lg bg-slate-100 border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-              <span>
-                Local preview mode enabled. Connect your Express + BullMQ backend by
-                setting <code className="font-mono text-slate-800">VITE_USE_MOCK_API=false</code>.
-              </span>
-              <span className="font-mono text-slate-500">
-                Account: {user.email}
+            <div className="flex flex-col justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center">
+              <div>
+                <p className="font-semibold">Preview mode is enabled</p>
+                <p className="mt-1 text-xs leading-5 text-amber-800">
+                  Connect your backend by setting{' '}
+                  <code className="rounded bg-amber-100 px-1.5 py-0.5 font-mono">
+                    VITE_USE_MOCK_API=false
+                  </code>{' '}
+                  in your frontend environment.
+                </p>
+              </div>
+
+              <span className="break-all text-xs text-amber-800">
+                {user.email}
               </span>
             </div>
           )}
 
-          {/* Dismissible Action Feedback Notice */}
           {bannerNotice && (
             <div
               role="status"
-              className="px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 text-sm text-emerald-900"
+              className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm text-emerald-900"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-start gap-2.5">
                 <CheckCircle2
-                  className="w-4 h-4 text-emerald-700 shrink-0"
+                  className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
                   aria-hidden="true"
                 />
                 <span>{bannerNotice}</span>
               </div>
+
               <button
                 type="button"
                 onClick={() => setBannerNotice(null)}
                 aria-label="Dismiss notification"
-                className="p-1 text-emerald-700 hover:text-emerald-950 rounded"
+                className="rounded-lg p-1 text-emerald-700 transition hover:bg-emerald-100"
               >
-                <X className="w-4 h-4" aria-hidden="true" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           )}
 
-          {/* Structured 4-Column Metric Strip */}
+          {queueError && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm text-rose-800"
+            >
+              <AlertTriangle
+                className="mt-0.5 h-5 w-5 shrink-0 text-rose-600"
+                aria-hidden="true"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">Unable to update your email queue</p>
+                <p className="mt-1 break-words">{queueError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQueueError(null)}
+                aria-label="Dismiss error"
+                className="rounded-lg p-1 hover:bg-rose-100"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+
           <section
             aria-label="Queue summary metrics"
-            className="bg-white border border-slate-200 rounded-xl grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 sm:divide-x divide-slate-200"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
           >
-            <div className="p-5">
-              <p className="text-xs font-medium text-slate-500">Scheduled Queue</p>
-              <p className="mt-1.5 text-2xl font-bold font-mono tabular-nums text-slate-900">
+            <div className="group rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-slate-500">
+                  Scheduled Emails
+                </p>
+                <div className="rounded-xl bg-blue-50 p-3 transition group-hover:bg-blue-100">
+                  <CalendarClock className="h-5 w-5 text-blue-600" aria-hidden="true" />
+                </div>
+              </div>
+              <p className="mt-4 text-3xl font-bold tracking-tight text-slate-950">
                 {scheduledEmails.length}
               </p>
+              <p className="mt-2 text-xs text-slate-500">
+                Emails waiting to be dispatched
+              </p>
             </div>
-            <div className="p-5">
-              <p className="text-xs font-medium text-slate-500">Next Dispatch</p>
-              <p className="mt-1.5 text-lg font-bold font-mono tabular-nums text-slate-900 truncate">
+
+            <div className="group rounded-2xl border border-violet-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-slate-500">
+                  Next Dispatch
+                </p>
+                <div className="rounded-xl bg-violet-50 p-3 transition group-hover:bg-violet-100">
+                  <Clock3 className="h-5 w-5 text-violet-600" aria-hidden="true" />
+                </div>
+              </div>
+              <p className="mt-4 text-xl font-bold tracking-tight text-slate-950">
                 {formatShortTime(nextReleaseTimestamp)}
               </p>
-            </div>
-            <div className="p-5">
-              <p className="text-xs font-medium text-slate-500">Delivered Total</p>
-              <p className="mt-1.5 text-2xl font-bold font-mono tabular-nums text-slate-900">
-                {deliveredCount}
+              <p className="mt-2 text-xs text-slate-500">
+                Next scheduled send time
               </p>
             </div>
-            <div className="p-5">
-              <p className="text-xs font-medium text-slate-500">Failed Dispatches</p>
-              <p className="mt-1.5 text-2xl font-bold font-mono tabular-nums text-slate-900">
+
+            <div className="group rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-slate-500">
+                  Delivered
+                </p>
+                <div className="rounded-xl bg-emerald-50 p-3 transition group-hover:bg-emerald-100">
+                  <Send className="h-5 w-5 text-emerald-600" aria-hidden="true" />
+                </div>
+              </div>
+              <p className="mt-4 text-3xl font-bold tracking-tight text-slate-950">
+                {deliveredCount}
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                Emails marked as sent
+              </p>
+            </div>
+
+            <div className="group rounded-2xl border border-rose-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-slate-500">
+                  Failed
+                </p>
+                <div className="rounded-xl bg-rose-50 p-3 transition group-hover:bg-rose-100">
+                  <AlertTriangle className="h-5 w-5 text-rose-600" aria-hidden="true" />
+                </div>
+              </div>
+              <p className="mt-4 text-3xl font-bold tracking-tight text-slate-950">
                 {failedCount}
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                Emails that need attention
               </p>
             </div>
           </section>
 
-          {/* Primary Workspace Body */}
-          {workspaceView === WorkspaceView.COMPOSE ? (
-            <ComposeEmailForm
-              senderEmail={user.email}
-              onScheduleSubmit={handleScheduleSubmit}
-              onNavigateToScheduled={() => {
-                setActiveTab(ActiveTab.SCHEDULED);
-                setWorkspaceView(WorkspaceView.QUEUE);
-              }}
-            />
-          ) : (
-            <EmailQueueTable
-              activeTab={activeTab}
-              scheduledEmails={scheduledEmails}
-              sentEmails={sentEmails}
-              isLoading={isQueueLoading}
-              error={queueError}
-              cancellingId={cancellingId}
-              onTabChange={setActiveTab}
-              onRefresh={loadEmailQueues}
-              onCancelScheduled={handleCancelScheduled}
-              onInspectEmail={setInspectedEmail}
-              onComposeClick={() => setWorkspaceView(WorkspaceView.COMPOSE)}
-              onMockPresetChange={handleMockPresetChange}
-            />
-          )}
+          <section className="min-w-0 rounded-2xl">
+            {workspaceView === WorkspaceView.COMPOSE ? (
+              <ComposeEmailForm
+                senderEmail={user.email}
+                onScheduleSubmit={handleScheduleSubmit}
+                onNavigateToScheduled={() => {
+                  setActiveTab(ActiveTab.SCHEDULED);
+                  setWorkspaceView(WorkspaceView.QUEUE);
+                }}
+              />
+            ) : (
+              <EmailQueueTable
+                activeTab={activeTab}
+                scheduledEmails={scheduledEmails}
+                sentEmails={sentEmails}
+                isLoading={isQueueLoading}
+                error={queueError}
+                cancellingId={cancellingId}
+                onTabChange={setActiveTab}
+                onRefresh={loadEmailQueues}
+                onCancelScheduled={handleCancelScheduled}
+                onInspectEmail={setInspectedEmail}
+                onComposeClick={() => setWorkspaceView(WorkspaceView.COMPOSE)}
+                onMockPresetChange={handleMockPresetChange}
+              />
+            )}
+          </section>
+
+          <footer className="flex flex-col justify-between gap-2 border-t border-slate-200/80 pt-5 text-xs text-slate-400 sm:flex-row sm:items-center">
+            <p>ReachInbox · Email scheduling workspace</p>
+            <p>Organize your outreach, one email at a time.</p>
+          </footer>
         </main>
       </div>
 
-      {/* Email Record Inspection Modal */}
       <EmailDetailModal
         email={inspectedEmail}
         cancellingId={cancellingId}
