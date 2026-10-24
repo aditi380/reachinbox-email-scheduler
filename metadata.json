@@ -1,0 +1,6 @@
+{
+  "name": "ReachInbox Email Scheduler",
+  "description": "Production-grade email campaign scheduling dashboard with CSV/TXT recipient parsing, configurable send delays, hourly rate limiting, and Google OAuth authentication.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
